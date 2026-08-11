@@ -10,7 +10,7 @@ final class AppSettingsTests: XCTestCase {
     func testDefaultsDifferentiateEachState() {
         let sounds = AppSettings.default.sounds
         XCTAssertEqual(sounds.completed, "Glass")
-        XCTAssertEqual(sounds.waiting, "Tink")
+        XCTAssertEqual(sounds.waiting, "Blow")
         XCTAssertEqual(sounds.failed, "Basso")
         XCTAssertEqual(
             Set([sounds.completed, sounds.waiting, sounds.failed]).count, 3,
@@ -79,7 +79,7 @@ final class AppSettingsResetTests: XCTestCase {
 
         // 「既定に戻す」は AppSettings.default をそのまま保存する操作である
         XCTAssertEqual(AppSettings.default.sounds.completed, "Glass")
-        XCTAssertEqual(AppSettings.default.sounds.waiting, "Tink")
+        XCTAssertEqual(AppSettings.default.sounds.waiting, "Blow")
         XCTAssertEqual(AppSettings.default.sounds.failed, "Basso")
         XCTAssertTrue(AppSettings.default.bannerEnabled)
     }
@@ -112,7 +112,7 @@ final class MuteTests: XCTestCase {
         }
         // 個別の設定は保持されている
         XCTAssertEqual(settings.sounds.completed, "Glass")
-        XCTAssertEqual(settings.sounds.waiting, "Tink")
+        XCTAssertEqual(settings.sounds.waiting, "Blow")
         XCTAssertEqual(settings.sounds.failed, "Basso")
     }
 

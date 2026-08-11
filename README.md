@@ -132,7 +132,7 @@ node Scripts/setup-hooks.js --status      # 登録状態を確認する
   "bannerEnabled": true,
   "sounds": {
     "completed": "Glass",
-    "waiting": "Tink",
+    "waiting": "Blow",
     "failed": "Basso"
   }
 }

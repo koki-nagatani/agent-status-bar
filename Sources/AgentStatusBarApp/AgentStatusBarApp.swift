@@ -13,6 +13,7 @@ final class Composition {
     let service: AgentStatusService
     let settingsStore: SettingsStore
     let soundCatalog: SoundCatalog
+    let loginItem: LoginItemController
     private let eventSource: AgentEventSource
     private var tickTask: Task<Void, Never>?
 
@@ -32,6 +33,7 @@ final class Composition {
         let settings = FileSettingsStore()
         settingsStore = settings
         soundCatalog = SystemSoundCatalog()
+        loginItem = SMLoginItem()
         service = AgentStatusService(
             clock: clock,
             probe: SignalProcessProbe(),
@@ -85,7 +87,8 @@ struct AgentStatusBarApp: App {
         _model = State(initialValue: StatusModel(service: composition.service))
         _settings = State(initialValue: SettingsModel(
             store: composition.settingsStore,
-            catalog: composition.soundCatalog
+            catalog: composition.soundCatalog,
+            loginItem: composition.loginItem
         ))
     }
 

@@ -13,7 +13,7 @@ public struct AppSettings: Sendable, Equatable, Codable {
         /// 異常終了。完了と聞き分けられる音にする。
         public var failed: String?
 
-        public init(completed: String? = "Glass", waiting: String? = "Tink", failed: String? = "Basso") {
+        public init(completed: String? = "Glass", waiting: String? = "Blow", failed: String? = "Basso") {
             self.completed = completed
             self.waiting = waiting
             self.failed = failed

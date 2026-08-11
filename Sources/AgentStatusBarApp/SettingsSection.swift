@@ -17,7 +17,7 @@ struct SettingsSection: View {
                 HStack(spacing: 5) {
                     Image(systemName: expanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 8, weight: .semibold))
-                    Text("通知音")
+                    Text("設定")
                         .font(.system(size: 11))
                     Spacer()
                 }
@@ -43,6 +43,30 @@ struct SettingsSection: View {
                     }
                     .toggleStyle(.checkbox)
                     .padding(.top, 2)
+
+                    Toggle(isOn: Binding(
+                        get: { model.launchesAtLogin },
+                        set: { model.setLaunchesAtLogin($0) }
+                    )) {
+                        Text("ログイン時に起動")
+                            .font(.system(size: 10))
+                    }
+                    .toggleStyle(.checkbox)
+
+                    if model.loginItemNeedsApproval {
+                        Label(
+                            "システム設定 > 一般 > ログイン項目 で許可してください",
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.system(size: 9))
+                        .foregroundStyle(.orange)
+                    }
+                    if let error = model.loginItemError {
+                        Text(error)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.red)
+                            .lineLimit(2)
+                    }
 
                     if model.isMuted {
                         // 音を選んでも鳴らない状態を、ここでも分かるようにする

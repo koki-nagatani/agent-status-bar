@@ -19,15 +19,40 @@ final class SettingsModel {
 
     private let store: SettingsStore
     private let catalog: SoundCatalog
+    private let loginItem: LoginItemController
 
     /// 「なし」を表す選択肢。`config.json` 上は `"none"` になる。
     static let silentLabel = "なし"
 
-    init(store: SettingsStore, catalog: SoundCatalog) {
+    init(store: SettingsStore, catalog: SoundCatalog, loginItem: LoginItemController) {
         self.store = store
         self.catalog = catalog
+        self.loginItem = loginItem
         self.settings = store.current()
         self.soundNames = catalog.names
+        self.launchesAtLogin = loginItem.isEnabled
+        self.loginItemNeedsApproval = loginItem.needsApproval
+    }
+
+    // MARK: - ログイン時に起動
+
+    /// OS 側が持つ状態のミラー。`config.json` には保存しない。
+    private(set) var launchesAtLogin: Bool = false
+    /// システム設定での許可待ちか。
+    private(set) var loginItemNeedsApproval: Bool = false
+    private(set) var loginItemError: String?
+
+    func setLaunchesAtLogin(_ enabled: Bool) {
+        do {
+            try loginItem.setEnabled(enabled)
+            loginItemError = nil
+        } catch {
+            loginItemError = error.localizedDescription
+        }
+        // 成否にかかわらず OS の実際の状態を読み直す
+        launchesAtLogin = loginItem.isEnabled
+        loginItemNeedsApproval = loginItem.needsApproval
+        flashSaved()
     }
 
     /// 選択された音を保存し、その場で鳴らして確認できるようにする。
