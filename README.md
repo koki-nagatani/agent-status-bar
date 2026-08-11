@@ -1,5 +1,8 @@
 # Agent Status Bar
 
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS-14%2B-black.svg)](#動作環境)
+
 > Codex / Claude Code の状態を macOS のメニューバーから一目で把握する、軽量なステータスモニター。
 
 ![Agent Status Bar](docs/overview.png)
@@ -196,3 +199,11 @@ Claude Code を auto モードで使っている場合などが該当します�
 - 状態は永続化されません。アプリを再起動すると空から始まります
 - セッションを一覧から手動で消す手段はまだありません
 - UI の文言は日本語のみです
+
+---
+
+## License
+
+[Apache License 2.0](LICENSE)
+
+外部ライブラリには依存していません（macOS の標準フレームワークのみ）。
