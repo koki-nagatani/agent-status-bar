@@ -1,0 +1,30 @@
+#!/bin/sh
+# AgentStatusBar の hook shim。
+#
+# Codex / Claude Code の全 hook イベントで実行されるため、以下を厳守する:
+#   - いかなる場合も exit 0 する。PreToolUse で非ゼロを返すとツール実行がブロックされる
+#   - stdout に何も書かない。Claude Code は hook の stdout を制御に使うことがある
+#   - 即座に返る。アプリが応答しなくても Agent を待たせない（-m 2）
+#
+# 使い方: asb-hook <provider>
+#   payload は stdin から受け取る（両 provider とも stdin, 実測で確認）
+
+provider="$1"
+socket="$HOME/Library/Application Support/AgentStatusBar/asb.sock"
+
+# アプリが起動していなければ何もしない
+[ -S "$socket" ] || exit 0
+
+# Agent 本体の PID
+#   Claude Code: CLAUDE_PID を継承する
+#   Codex: 相当する環境変数が無いため $PPID を使う
+#          （hook の親プロセスが codex 本体であることを実測で確認）
+pid="${CLAUDE_PID:-$PPID}"
+
+curl -s -m 2 -o /dev/null \
+    --unix-socket "$socket" \
+    --data-binary @- \
+    "http://localhost/event?provider=${provider}&pid=${pid}" \
+    >/dev/null 2>&1
+
+exit 0
