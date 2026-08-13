@@ -10,13 +10,17 @@ public struct AgentEvent: Sendable, Equatable {
     public let cwd: String
     public let kind: Kind
     public let pid: ProcessID?
+    /// このイベントを発したホスト。ローカルは `nil`。
+    /// リモート（SSH 越し）のセッションだけ値が入り、liveness 判定に使う。
+    public let host: String?
     public let at: Date
 
-    public init(key: SessionKey, cwd: String, kind: Kind, pid: ProcessID? = nil, at: Date) {
+    public init(key: SessionKey, cwd: String, kind: Kind, pid: ProcessID? = nil, host: String? = nil, at: Date) {
         self.key = key
         self.cwd = cwd
         self.kind = kind
         self.pid = pid
+        self.host = host
         self.at = at
     }
 

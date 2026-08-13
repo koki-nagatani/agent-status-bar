@@ -134,9 +134,11 @@ public final class UnixSocketHookServer: AgentEventSource, @unchecked Sendable {
         // pid は payload ではなく transport が渡す。
         // Claude Code は CLAUDE_PID 環境変数、Codex は $PPID から取る。
         let pid = query["pid"].flatMap { ProcessID($0) }.flatMap { $0 > 0 ? $0 : nil }
+        // host はリモート（SSH 越し）の shim だけが付ける。ローカルは付かない＝nil。
+        let host = query["host"].flatMap { $0.isEmpty ? nil : $0 }
 
         do {
-            return try decoder.decode(provider: provider, pid: pid, at: clock.now, payload: request.body)
+            return try decoder.decode(provider: provider, pid: pid, host: host, at: clock.now, payload: request.body)
         } catch {
             onDecodeFailure?(error)
             return nil

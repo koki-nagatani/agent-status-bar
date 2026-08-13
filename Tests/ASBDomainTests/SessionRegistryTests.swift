@@ -140,6 +140,39 @@ final class SessionRegistryTests: XCTestCase {
         XCTAssertEqual(registry[k]?.liveness, .stale)
     }
 
+    // MARK: - リモート（SSH 越し）のセッション
+
+    /// リモートの PID はローカルの kill(0) で検証できない。
+    /// host が付いたセッションはプローブせず、TTL だけで liveness を決める。
+    func testRemoteSessionSkipsLocalPidProbe() {
+        var registry = SessionRegistry()
+        let k = key("r1")
+        // pid はリモート側のもの。ローカルには存在しない or 無関係なプロセスと衝突しうる。
+        registry.apply(AgentEvent(key: k, cwd: "/w", kind: .activity, pid: 424242, host: "devbox", at: at(0)))
+        XCTAssertEqual(registry[k]?.host, "devbox")
+
+        registry.evaluateLiveness(now: at(10), staleAfter: 900) { _ in
+            XCTFail("リモートセッションでローカル PID プローブを呼んではならない"); return false
+        }
+        XCTAssertEqual(registry[k]?.liveness, .live)
+        XCTAssertTrue(registry[k]!.isActive)
+
+        // TTL 超過は stale。gone にはしない（SessionEnd を待つ）。
+        registry.evaluateLiveness(now: at(1000), staleAfter: 900) { _ in
+            XCTFail("リモートは probe を呼ばない"); return true
+        }
+        XCTAssertEqual(registry[k]?.liveness, .stale)
+    }
+
+    /// リモートでも SessionEnd が届けば gone にする。
+    func testRemoteSessionEndMarksGone() {
+        var registry = SessionRegistry()
+        let k = key("r1")
+        registry.apply(AgentEvent(key: k, cwd: "/w", kind: .activity, pid: 1, host: "box", at: at(0)))
+        registry.apply(AgentEvent(key: k, cwd: "/w", kind: .sessionEnded, pid: 1, host: "box", at: at(1)))
+        XCTAssertEqual(registry[k]?.liveness, .gone)
+    }
+
     // MARK: - 同一性
 
     /// cwd をキーにすると並行セッションが互いを上書きしてしまう。

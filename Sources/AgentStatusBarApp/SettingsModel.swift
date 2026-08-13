@@ -15,7 +15,12 @@ final class SettingsModel {
     private var indicatorTask: Task<Void, Never>?
 
     /// すでに既定値なら「既定に戻す」は無効にする。
-    var isDefault: Bool { settings == .default }
+    /// リモート設定（`remotes`）は別モデルの管轄なので比較に含めない。
+    var isDefault: Bool {
+        settings.sounds == AppSettings.default.sounds
+            && settings.bannerEnabled == AppSettings.default.bannerEnabled
+            && settings.muted == AppSettings.default.muted
+    }
 
     private let store: SettingsStore
     private let catalog: SoundCatalog
@@ -103,9 +108,15 @@ final class SettingsModel {
     }
 
     private func persist(_ updated: AppSettings) {
-        settings = updated
+        // リモート設定モデルが書いた `remotes` を消さないよう、保存直前に最新を読み直して
+        // このモデルの担当項目（音・バナー・ミュート）だけを載せ替える。
+        var merged = store.current()
+        merged.sounds = updated.sounds
+        merged.bannerEnabled = updated.bannerEnabled
+        merged.muted = updated.muted
+        settings = merged
         do {
-            try store.save(updated)
+            try store.save(merged)
             flashSaved()
         } catch {
             FileHandle.standardError.write(

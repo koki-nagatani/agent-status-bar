@@ -58,6 +58,30 @@ final class AppSettingsTests: XCTestCase {
     func testInvalidJsonThrowsSoCallerCanFallBack() {
         XCTAssertThrowsError(try decode("これは JSON ではない"))
     }
+
+    // MARK: - リモートホスト
+
+    func testRemotesDefaultToEmpty() throws {
+        XCTAssertEqual(try decode("{}").remotes, [])
+        XCTAssertEqual(AppSettings.default.remotes, [])
+    }
+
+    func testRemotesRoundTrip() throws {
+        let settings = try decode(#"{"remotes":[{"alias":"devbox","enabled":true},{"alias":"gpu","enabled":false}]}"#)
+        XCTAssertEqual(settings.remotes, [
+            .init(alias: "devbox", enabled: true),
+            .init(alias: "gpu", enabled: false),
+        ])
+        // 他項目はデフォルトを保つ
+        XCTAssertEqual(settings.sounds.completed, "Glass")
+    }
+
+    /// remotes を書いても音・バナー・ミュートに影響しない（各項目は独立）。
+    func testRemotesAreIndependentOfOtherSettings() throws {
+        let settings = try decode(#"{"remotes":[{"alias":"box","enabled":true}]}"#)
+        XCTAssertTrue(settings.bannerEnabled)
+        XCTAssertFalse(settings.muted)
+    }
 }
 
 /// 即時保存方式の退路（「既定に戻す」）が成立するための性質。

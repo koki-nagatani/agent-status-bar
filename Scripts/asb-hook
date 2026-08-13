@@ -8,11 +8,17 @@
 #
 # 使い方: asb-hook <provider>
 #   payload は stdin から受け取る（両 provider とも stdin, 実測で確認）
+#
+# 環境変数（リモート＝SSH 越しで使うとき）:
+#   ASB_SOCKET  ソケットのパス。未指定ならローカルの既定パス。
+#               リモートでは `ssh -R` で転送したソケットを指す。
+#   ASB_HOST    このセッションのホスト識別子。付けるとアプリ側が
+#               「リモート」と判断し、ローカル PID プローブをスキップする。
 
 provider="$1"
-socket="$HOME/Library/Application Support/AgentStatusBar/asb.sock"
+socket="${ASB_SOCKET:-$HOME/Library/Application Support/AgentStatusBar/asb.sock}"
 
-# アプリが起動していなければ何もしない
+# アプリ（またはトンネル）が起動していなければ何もしない
 [ -S "$socket" ] || exit 0
 
 # Agent 本体の PID
@@ -21,10 +27,14 @@ socket="$HOME/Library/Application Support/AgentStatusBar/asb.sock"
 #          （hook の親プロセスが codex 本体であることを実測で確認）
 pid="${CLAUDE_PID:-$PPID}"
 
+# host は付いているときだけクエリに足す（ローカルでは空）
+query="provider=${provider}&pid=${pid}"
+[ -n "${ASB_HOST:-}" ] && query="${query}&host=${ASB_HOST}"
+
 curl -s -m 2 -o /dev/null \
     --unix-socket "$socket" \
     --data-binary @- \
-    "http://localhost/event?provider=${provider}&pid=${pid}" \
+    "http://localhost/event?${query}" \
     >/dev/null 2>&1
 
 exit 0

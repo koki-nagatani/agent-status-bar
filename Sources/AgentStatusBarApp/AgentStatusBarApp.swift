@@ -14,6 +14,9 @@ final class Composition {
     let settingsStore: SettingsStore
     let soundCatalog: SoundCatalog
     let loginItem: LoginItemController
+    let remoteEnumerator: RemoteHostEnumerator
+    let tunnelSupervisor: RemoteTunnelSupervisor
+    let remoteBootstrapper: RemoteBootstrapper
     private let eventSource: AgentEventSource
     private var tickTask: Task<Void, Never>?
 
@@ -27,6 +30,22 @@ final class Composition {
         return base.appendingPathComponent("asb.sock").path
     }()
 
+    /// リモート側へ `ssh -R` で転送するソケットのパス。
+    /// 同一リモート上での取り違えを避けるため、ローカルのユーザー名を混ぜる。
+    static let remoteSocketPath: String = {
+        let slug = NSUserName().unicodeScalars
+            .map { CharacterSet.alphanumerics.contains($0) ? Character($0) : "-" }
+        return "/tmp/agent-status-bar-\(String(slug)).sock"
+    }()
+
+    /// リモートへ配布する shim の在り処。setup-hooks が配置したものを使う。
+    static let shimPath: String = {
+        let base = FileManager.default
+            .urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("AgentStatusBar", isDirectory: true)
+        return base.appendingPathComponent("asb-hook").path
+    }()
+
     init() {
         let clock = SystemClock()
         // 設定ファイルは編集すると次の通知から反映される（再起動不要）
@@ -34,6 +53,15 @@ final class Composition {
         settingsStore = settings
         soundCatalog = SystemSoundCatalog()
         loginItem = SMLoginItem()
+        remoteEnumerator = SSHConfigReader()
+        tunnelSupervisor = RemoteTunnelSupervisor(
+            localSocketPath: Self.socketPath,
+            remoteSocketPath: Self.remoteSocketPath
+        )
+        remoteBootstrapper = RemoteBootstrapper(
+            localShimPath: Self.shimPath,
+            remoteSocketPath: Self.remoteSocketPath
+        )
         service = AgentStatusService(
             clock: clock,
             probe: SignalProcessProbe(),
@@ -72,6 +100,7 @@ final class Composition {
     func stop() {
         tickTask?.cancel()
         eventSource.stop()
+        tunnelSupervisor.shutdown()
     }
 }
 
@@ -79,6 +108,7 @@ final class Composition {
 struct AgentStatusBarApp: App {
     @State private var model: StatusModel
     @State private var settings: SettingsModel
+    @State private var remoteHosts: RemoteHostsModel
     private let composition: Composition
 
     init() {
@@ -90,6 +120,12 @@ struct AgentStatusBarApp: App {
             catalog: composition.soundCatalog,
             loginItem: composition.loginItem
         ))
+        _remoteHosts = State(initialValue: RemoteHostsModel(
+            store: composition.settingsStore,
+            enumerator: composition.remoteEnumerator,
+            supervisor: composition.tunnelSupervisor,
+            bootstrapper: composition.remoteBootstrapper
+        ))
     }
 
     var body: some Scene {
@@ -97,6 +133,7 @@ struct AgentStatusBarApp: App {
             DetailPanel(
                 snapshot: model.snapshot,
                 settings: settings,
+                remoteHosts: remoteHosts,
                 onAppear: { model.acknowledgeCompleted() }
             )
         } label: {

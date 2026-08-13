@@ -69,6 +69,8 @@ public struct SessionRegistry: Sendable {
         // cwd と pid は毎イベントで最新に追従させる（pid は取得できた時のみ）。
         session.cwd = event.cwd
         if let pid = event.pid { session.pid = pid }
+        // host はリモートセッションでのみ入る。一度付いたら維持する。
+        if let host = event.host { session.host = host }
         session.updatedAt = event.at
 
         var effects: [RegistryEffect] = []
@@ -138,7 +140,12 @@ public struct SessionRegistry: Sendable {
         for (key, var session) in sessions {
             guard session.liveness != .gone else { continue }
 
-            if let pid = session.pid {
+            if session.host != nil {
+                // リモート: PID はローカルの `kill(0)` で検証できない（不在なら消え、
+                // 無関係なローカル PID と衝突すれば誤って生存判定になる）。
+                // SessionEnd が来れば gone、来なければ TTL で stale に落とす。
+                session.liveness = now.timeIntervalSince(session.updatedAt) > staleAfter ? .stale : .live
+            } else if let pid = session.pid {
                 // 第2層: プロセスの生存が最も確実な判定。
                 if !isAlive(pid) {
                     session.liveness = .gone

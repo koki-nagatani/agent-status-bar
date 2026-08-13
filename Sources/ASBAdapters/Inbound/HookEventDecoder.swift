@@ -37,6 +37,7 @@ public struct HookEventDecoder: Sendable {
     public func decode(
         provider: AgentProvider,
         pid: ProcessID?,
+        host: String? = nil,
         at: Date,
         payload: Data
     ) throws -> AgentEvent {
@@ -51,6 +52,7 @@ public struct HookEventDecoder: Sendable {
             cwd: envelope.cwd,
             kind: kind,
             pid: pid,
+            host: host,
             at: at
         )
     }

@@ -11,7 +11,7 @@ CONFIG="${1:-debug}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/build/AgentStatusBar.app"
 BUNDLE_ID="dev.knagatani.AgentStatusBar"
-VERSION="0.1.0"
+VERSION="0.2.0"
 
 cd "$ROOT"
 echo "==> swift build ($CONFIG)"

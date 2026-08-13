@@ -97,6 +97,18 @@ final class HookEventDecoderTests: XCTestCase {
         XCTAssertNil(try decode(codexSessionStart, .codex, pid: nil).pid)
     }
 
+    /// host は transport（リモートの shim）が渡す。ローカルは nil。
+    func testHostIsCarriedWhenProvided() throws {
+        let event = try decoder.decode(
+            provider: .claude, pid: 1, host: "devbox", at: now, payload: Data(claudeStop.utf8)
+        )
+        XCTAssertEqual(event.host, "devbox")
+    }
+
+    func testHostIsNilForLocalEvents() throws {
+        XCTAssertNil(try decode(claudeStop, .claude).host)
+    }
+
     // MARK: - イベント名のマッピング
 
     func testActivityEventsIncludeToolFailure() {

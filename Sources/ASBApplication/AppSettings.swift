@@ -20,6 +20,19 @@ public struct AppSettings: Sendable, Equatable, Codable {
         }
     }
 
+    /// 監視するリモートホスト（SSH 越し）。`~/.ssh/config` の Host 名で指定する。
+    public struct RemoteHost: Sendable, Equatable, Codable {
+        /// `~/.ssh/config` の Host エイリアス。
+        public var alias: String
+        /// 起動時にトンネルを張るか。
+        public var enabled: Bool
+
+        public init(alias: String, enabled: Bool = false) {
+            self.alias = alias
+            self.enabled = enabled
+        }
+    }
+
     public var sounds: Sounds
     /// バナー通知を出すか。音とは独立に切れる。
     public var bannerEnabled: Bool
@@ -29,10 +42,19 @@ public struct AppSettings: Sendable, Equatable, Codable {
     /// 折りたたみの中ではなくパネルを開いた時点で操作できる位置に置く。
     public var muted: Bool
 
-    public init(sounds: Sounds = .init(), bannerEnabled: Bool = true, muted: Bool = false) {
+    /// 監視対象のリモートホスト。UI（リモートセクション）から編集する。
+    public var remotes: [RemoteHost]
+
+    public init(
+        sounds: Sounds = .init(),
+        bannerEnabled: Bool = true,
+        muted: Bool = false,
+        remotes: [RemoteHost] = []
+    ) {
         self.sounds = sounds
         self.bannerEnabled = bannerEnabled
         self.muted = muted
+        self.remotes = remotes
     }
 
     public static let `default` = AppSettings()
@@ -43,6 +65,7 @@ public struct AppSettings: Sendable, Equatable, Codable {
         sounds = try container.decodeIfPresent(Sounds.self, forKey: .sounds) ?? Sounds()
         bannerEnabled = try container.decodeIfPresent(Bool.self, forKey: .bannerEnabled) ?? true
         muted = try container.decodeIfPresent(Bool.self, forKey: .muted) ?? false
+        remotes = try container.decodeIfPresent([RemoteHost].self, forKey: .remotes) ?? []
     }
 }
 

@@ -12,6 +12,11 @@ public struct AgentSession: Sendable, Equatable {
     /// liveness 判定に使う。provider によっては取得できない。
     public var pid: ProcessID?
 
+    /// SSH 越しのリモートセッションのホスト名。ローカルは `nil`。
+    /// リモートの PID はローカルで検証できないため、`nil` でないセッションは
+    /// PID プローブを行わず TTL のみで liveness を判定する。
+    public var host: String?
+
     public var startedAt: Date?
     public var updatedAt: Date
     public var completedAt: Date?
@@ -30,6 +35,7 @@ public struct AgentSession: Sendable, Equatable {
         status: AgentStatus,
         liveness: Liveness = .live,
         pid: ProcessID? = nil,
+        host: String? = nil,
         startedAt: Date? = nil,
         updatedAt: Date,
         completedAt: Date? = nil,
@@ -41,6 +47,7 @@ public struct AgentSession: Sendable, Equatable {
         self.status = status
         self.liveness = liveness
         self.pid = pid
+        self.host = host
         self.startedAt = startedAt
         self.updatedAt = updatedAt
         self.completedAt = completedAt

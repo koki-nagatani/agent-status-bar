@@ -6,6 +6,7 @@ import ASBApplication
 struct DetailPanel: View {
     let snapshot: StatusSnapshot
     let settings: SettingsModel
+    let remoteHosts: RemoteHostsModel
     /// パネルを開いた時点で完了バッジをリセットするために呼ぶ。
     let onAppear: () -> Void
 
@@ -46,6 +47,8 @@ struct DetailPanel: View {
                 }
             }
 
+            Divider()
+            RemoteSection(model: remoteHosts)
             Divider()
             SettingsSection(model: settings)
             Divider()
@@ -119,9 +122,18 @@ private struct SessionRow: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Text("\(session.providerLabel) · \(session.displayStatus)")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    if let host = session.host {
+                        Label(host, systemImage: "network")
+                            .font(.system(size: 9))
+                            .labelStyle(.titleAndIcon)
+                            .foregroundStyle(.blue)
+                            .help("リモート (SSH): \(host)")
+                    }
+                    Text("\(session.providerLabel) · \(session.displayStatus)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
 
                 Text(abbreviatedPath)
                     .font(.system(size: 10, design: .monospaced))
