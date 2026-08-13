@@ -27,7 +27,6 @@ const EVENTS = {
     'PostToolUse',
     'PostToolUseFailure',
     'PermissionRequest',
-    'Notification',
     'Stop',
     'StopFailure',
     'SessionEnd',

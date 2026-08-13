@@ -110,7 +110,12 @@ final class HookEventDecoderTests: XCTestCase {
 
     func testWaitingEvents() {
         XCTAssertEqual(HookEventDecoder.kind(for: "PermissionRequest"), .awaitingApproval)
-        XCTAssertEqual(HookEventDecoder.kind(for: "Notification"), .awaitingApproval)
+    }
+
+    // Claude Code の Notification はターン終了後の「入力待ち」でも発火するため、
+    // 判断待ちには写さない（完了直後に判断待ちへ戻るのを防ぐ）。
+    func testNotificationIsNotTreatedAsWaiting() {
+        XCTAssertNil(HookEventDecoder.kind(for: "Notification"))
     }
 
     func testStopFailureIsTurnFailed() {

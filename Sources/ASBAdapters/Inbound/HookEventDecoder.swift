@@ -66,7 +66,10 @@ public struct HookEventDecoder: Sendable {
         case "UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure":
             return .activity
 
-        case "PermissionRequest", "Notification":
+        // 判断待ちは PermissionRequest だけに写す。
+        // Claude Code の Notification はターン終了後の「入力待ち」でも発火するため、
+        // これを awaitingApproval にすると完了直後に判断待ちへ戻ってしまう。
+        case "PermissionRequest":
             return .awaitingApproval
 
         // ターン終了であってセッション終了ではない。
