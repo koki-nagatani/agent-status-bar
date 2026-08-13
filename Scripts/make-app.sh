@@ -44,6 +44,14 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# hook 登録スクリプトを同梱する。
+# ダウンロードして使う人が repo を持たなくても、アプリの中から hook を登録できるようにする:
+#   node "/Applications/AgentStatusBar.app/Contents/Resources/setup-hooks.js"
+echo "==> hook スクリプトを同梱"
+cp "$ROOT/Scripts/setup-hooks.js" "$APP/Contents/Resources/setup-hooks.js"
+cp "$ROOT/Scripts/asb-hook" "$APP/Contents/Resources/asb-hook"
+chmod +x "$APP/Contents/Resources/asb-hook"
+
 # 通知の許可取得には署名済みであることが必要。配布しないので ad-hoc で足りる。
 echo "==> ad-hoc 署名"
 codesign --force --sign - --timestamp=none "$APP" >/dev/null 2>&1 \

@@ -70,19 +70,38 @@ Agent Status Bar は hook を使うため、応答中の状態も追跡できま
 ## 動作環境
 
 - **macOS 14 以降**
-- **Xcode** — ビルドに必要です（Command Line Tools だけでは足りません）
 - **[Codex CLI](https://github.com/openai/codex) / [Claude Code](https://github.com/anthropics/claude-code)** のいずれか、または両方
 - **Node.js** — hook を登録するスクリプトの実行にのみ使います
+- **Xcode** — **ソースからビルドする場合のみ**必要です（Command Line Tools だけでは足りません）
 
 ## セットアップ
 
-### 1. ビルドしてインストール
+### 1. アプリを入れる
+
+#### 方法 A: ダウンロードして使う（ビルド不要）
+
+1. [Releases](https://github.com/koki-nagatani/agent-status-bar/releases/latest) から `AgentStatusBar.app.zip` をダウンロードして展開する
+2. `AgentStatusBar.app` を `/Applications` へ移動する
+3. **署名していない配布物なので、初回だけ隔離属性を外します**
+
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/AgentStatusBar.app
+   ```
+
+   （または Finder で右クリック → 「開く」→ 確認ダイアログで「開く」）
+4. 起動する。メニューバーに常駐します（Dock にアイコンは出ません）
+
+> [!NOTE]
+> ローカルビルドと同じ ad-hoc 署名のため、macOS はバナー通知を出しません（音は鳴ります）。
+> 詳細は [うまく動かないとき](#バナー通知が出ない) を参照してください。
+
+#### 方法 B: ソースからビルド
 
 ```bash
 ./Scripts/install.sh
 ```
 
-`/Applications/AgentStatusBar.app` に配置して起動します。メニューバーに常駐します（Dock にアイコンは出ません）。
+`/Applications/AgentStatusBar.app` に配置して起動します。
 
 > [!NOTE]
 > 「ログイン時に起動」は登録した時点のアプリの場所を記憶します。
@@ -91,10 +110,14 @@ Agent Status Bar は hook を使うため、応答中の状態も追跡できま
 
 ### 2. hook を登録
 
-Agent の状態は hook 経由で受け取ります。
+Agent の状態は hook 経由で受け取ります。**Node.js が必要です。**
 
 ```bash
+# ソースからビルドした場合（repo 内で）
 node Scripts/setup-hooks.js
+
+# ダウンロード版（スクリプトはアプリに同梱しています）
+node "/Applications/AgentStatusBar.app/Contents/Resources/setup-hooks.js"
 ```
 
 `~/.claude/settings.json` と `~/.codex/hooks.json` に登録します。
@@ -128,6 +151,12 @@ codex
 ```bash
 node Scripts/setup-hooks.js --uninstall   # hook を外す
 node Scripts/setup-hooks.js --status      # 登録状態を確認する
+```
+
+ダウンロード版は、同じスクリプトが同梱されています。
+
+```bash
+node "/Applications/AgentStatusBar.app/Contents/Resources/setup-hooks.js" --status
 ```
 
 > [!TIP]
