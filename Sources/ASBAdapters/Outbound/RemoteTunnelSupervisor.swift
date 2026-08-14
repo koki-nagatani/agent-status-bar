@@ -10,6 +10,7 @@ import ASBApplication
 @MainActor
 public final class RemoteTunnelSupervisor: TunnelSupervising {
     public var onChange: (@MainActor () -> Void)?
+    public var onDisconnected: (@MainActor (String) -> Void)?
     public let remoteSocketPath: String
     private let localSocketPath: String
 
@@ -78,6 +79,8 @@ public final class RemoteTunnelSupervisor: TunnelSupervising {
         guard let entry = entries.removeValue(forKey: alias) else { return }
         entry.task?.cancel()
         if let process = entry.process, process.isRunning { process.terminate() }
+        // 監視をやめた以上、このホストのセッションはもう更新されない。
+        onDisconnected?(alias)
         onChange?()
     }
 
@@ -105,7 +108,12 @@ public final class RemoteTunnelSupervisor: TunnelSupervising {
             let reason = await runTunnel(alias)
             if Task.isCancelled { break }
 
+            let wasConnected = entries[alias]?.state == .connected
             setState(.failed(reason), for: alias)
+            // 経路が切れている間のリモートの状態は届かない。
+            // 「実行中」のまま固まったセッションを残さないよう、ここで片付ける。
+            // 一度も繋がらなかった再試行では何も届いていないので呼ばない。
+            if wasConnected { onDisconnected?(alias) }
             // 落ちたら待ってから再接続する。連続失敗で徐々に間隔を空ける。
             try? await Task.sleep(nanoseconds: backoff)
             backoff = min(backoff * 2, Self.maxBackoffNanos)

@@ -78,6 +78,13 @@ final class Composition {
 
     func start() {
         let service = service
+
+        // トンネルが落ちたら、そのホストのセッションは以降更新されない。
+        // 実行中のまま残すと消えない 🔵 になるため片付ける（生きていれば次のイベントで戻る）。
+        tunnelSupervisor.onDisconnected = { alias in
+            Task { await service.hostDisconnected(alias) }
+        }
+
         do {
             try eventSource.start { event in
                 Task { await service.ingest(event) }

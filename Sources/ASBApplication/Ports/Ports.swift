@@ -98,4 +98,7 @@ public protocol TunnelSupervising: AnyObject {
     var remoteSocketPath: String { get }
     /// 状態が変わったときに呼ばれる。UI の再描画に使う。
     var onChange: (@MainActor () -> Void)? { get set }
+    /// トンネルが落ちた／畳まれたときに、そのホストのエイリアスで呼ばれる。
+    /// 経路が切れた間のリモートセッションは状態が更新されないため、片付けに使う。
+    var onDisconnected: (@MainActor (String) -> Void)? { get set }
 }

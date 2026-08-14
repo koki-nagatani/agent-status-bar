@@ -75,6 +75,13 @@ public actor AgentStatusService {
         }
     }
 
+    /// リモートへのトンネルが切れたときに呼ぶ。
+    /// 経路が無い間の状態は裏が取れないため、そのホストの実行中セッションを片付ける。
+    public func hostDisconnected(_ host: String) {
+        registry.markHostDisconnected(host)
+        publish()
+    }
+
     /// 詳細パネルが開かれたときに呼ぶ。メニューバーの完了バッジをリセットする。
     public func acknowledgeCompleted() {
         registry.acknowledgeCompleted()

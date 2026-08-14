@@ -56,6 +56,45 @@ public struct SessionRegistry: Sendable {
 
     @discardableResult
     public mutating func apply(_ event: AgentEvent) -> [RegistryEffect] {
+        switch event.kind {
+        case .sessionStarted:
+            // SessionStart は実行の開始ではないため、他のイベントと同じ経路に乗せない。
+            applySessionOpened(event)
+            return []
+        default:
+            return applyProgress(event)
+        }
+    }
+
+    /// `SessionStart`。**セッションが「開かれた」だけで、まだ何も実行していない。**
+    ///
+    /// ターミナルで agent を起動した時点、VSCode のチャットタブが復元された時点
+    /// （リモート再接続時の resume を含む）で発火するため、これを `running` に写すと
+    /// **何も送っていないセッションが実行中として数えられる**。
+    /// 実行中の実体は `UserPromptSubmit` 以降（`.activity`）にしかない。
+    ///
+    /// したがってここではセッションを作らない。さらに、同じ session_id が
+    /// 既に `running` / `waiting` として残っている場合、それは経路断などで
+    /// 終了イベントを取りこぼした残骸であり（セッションは今まさに開き直されたので
+    /// 何も走っていない）、破棄する。
+    /// `completed` / `error` は「終わった記録」なので残す。再接続でタブが復元されただけで
+    /// 未確認の完了バッジを消してしまわないため。
+    private mutating func applySessionOpened(_ event: AgentEvent) {
+        guard var session = sessions[event.key],
+              session.status == .completed || session.status == .error
+        else {
+            sessions[event.key] = nil
+            return
+        }
+        session.cwd = event.cwd
+        if let pid = event.pid { session.pid = pid }
+        if let host = event.host { session.host = host }
+        session.updatedAt = event.at
+        session.liveness = .live
+        sessions[event.key] = session
+    }
+
+    private mutating func applyProgress(_ event: AgentEvent) -> [RegistryEffect] {
         // 通知は状態が変化したときだけ出す。同じ状態の再通知を防ぐための基準値。
         let previousStatus = sessions[event.key]?.status
 
@@ -63,6 +102,8 @@ public struct SessionRegistry: Sendable {
             key: event.key,
             cwd: event.cwd,
             status: .running,
+            // SessionStart では作らないため、最初の実イベントが開始時刻になる。
+            startedAt: event.at,
             updatedAt: event.at
         )
 
@@ -77,9 +118,8 @@ public struct SessionRegistry: Sendable {
 
         switch event.kind {
         case .sessionStarted:
-            session.status = .running
-            session.liveness = .live
-            session.startedAt = event.at
+            // applySessionOpened で処理済み。ここには到達しない。
+            break
 
         case .activity:
             // completed からの復帰を正常系として許可する。
@@ -116,6 +156,26 @@ public struct SessionRegistry: Sendable {
 
         sessions[event.key] = session
         return effects
+    }
+
+    /// リモートへの経路（SSH トンネル）が切れたときに呼ぶ。
+    ///
+    /// 以降そのホストの hook は届かない。`running` / `waiting` は
+    /// **裏が取れないまま固まる**（リモートは PID プローブができず、
+    /// TTL では `stale` になるだけで実行中カウントに残り続ける）ため破棄する。
+    /// 実際にはまだ生きているセッションなら、再接続後の最初のイベントで戻ってくる。
+    ///
+    /// `completed` / `error` は既に終わった記録なので残し、liveness だけ落とす。
+    public mutating func markHostDisconnected(_ host: String) {
+        for (key, var session) in sessions where session.host == host {
+            switch session.status {
+            case .running, .waiting:
+                sessions[key] = nil
+            case .completed, .error:
+                session.liveness = .gone
+                sessions[key] = session
+            }
+        }
     }
 
     /// 完了をすべて「確認済み」にする。詳細パネルを開いたときに呼ぶ。

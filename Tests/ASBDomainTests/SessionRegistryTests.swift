@@ -45,6 +45,55 @@ final class SessionRegistryTests: XCTestCase {
         XCTAssertEqual(registry[k]?.status, .running, "completed から running への復帰は正常系")
     }
 
+    // MARK: - SessionStart は実行の開始ではない
+
+    /// ターミナルで agent を起動しただけ、VSCode のチャットタブが開いただけで
+    /// `SessionStart` は発火する。まだ何も送っていないので実行中にしてはならない。
+    func testSessionStartAloneIsNotRunning() {
+        var registry = SessionRegistry()
+        let k = key("s1")
+
+        let effects = registry.apply(event(.sessionStarted, k, at: 0))
+
+        XCTAssertNil(registry[k], "何も送っていないセッションは一覧に出さない")
+        XCTAssertEqual(registry.summary.running, 0)
+        XCTAssertTrue(effects.isEmpty)
+
+        // 最初のプロンプトで初めて実行中になる。
+        registry.apply(event(.activity, k, at: 1))
+        XCTAssertEqual(registry[k]?.status, .running)
+        XCTAssertEqual(registry[k]?.startedAt, at(1), "経過時間の起点は最初の実イベント")
+    }
+
+    /// リモート再接続で VSCode のタブが復元されると、同じ session_id で
+    /// `SessionStart` が来る。取りこぼしで残っていた `running` はその時点の事実ではない。
+    func testSessionStartClearsStaleRunningState() {
+        var registry = SessionRegistry()
+        let k = key("s1")
+
+        registry.apply(AgentEvent(key: k, cwd: "/w", kind: .activity, pid: 1, host: "box", at: at(0)))
+        XCTAssertEqual(registry.summary.running, 1)
+
+        // 接続が切れている間に Stop / SessionEnd を取りこぼし、タブが復元される
+        registry.apply(AgentEvent(key: k, cwd: "/w", kind: .sessionStarted, pid: 1, host: "box", at: at(100)))
+
+        XCTAssertNil(registry[k], "resume 直後は何も走っていない")
+        XCTAssertEqual(registry.summary.running, 0)
+    }
+
+    /// 完了の記録まで消してはならない。再接続でタブが復元されただけで
+    /// 未確認の 🟢 が消えると「終わっていたことに気づかない」に戻ってしまう。
+    func testSessionStartKeepsCompletedRecord() {
+        var registry = SessionRegistry()
+        let k = key("s1")
+
+        registry.apply(event(.turnCompleted, k, at: 0))
+        registry.apply(event(.sessionStarted, k, at: 1))
+
+        XCTAssertEqual(registry[k]?.status, .completed)
+        XCTAssertEqual(registry.summary.unacknowledgedCompleted, 1)
+    }
+
     // MARK: - PostToolUseFailure は error ではない
 
     /// ツール1回分の失敗は Agent の通常動作。error にすると 🔴 が常時点灯する。
@@ -171,6 +220,37 @@ final class SessionRegistryTests: XCTestCase {
         registry.apply(AgentEvent(key: k, cwd: "/w", kind: .activity, pid: 1, host: "box", at: at(0)))
         registry.apply(AgentEvent(key: k, cwd: "/w", kind: .sessionEnded, pid: 1, host: "box", at: at(1)))
         XCTAssertEqual(registry[k]?.liveness, .gone)
+    }
+
+    /// トンネルが切れたら、そのホストの実行中セッションは裏が取れない。
+    /// リモートは PID プローブができないため、残すと消えない 🔵 になる。
+    func testHostDisconnectDropsUnverifiableRemoteSessions() {
+        var registry = SessionRegistry()
+        let running = key("r1"), done = key("r2"), local = key("l1")
+
+        registry.apply(AgentEvent(key: running, cwd: "/w", kind: .activity, pid: 1, host: "box", at: at(0)))
+        registry.apply(AgentEvent(key: done, cwd: "/w", kind: .turnCompleted, pid: 2, host: "box", at: at(0)))
+        registry.apply(event(.activity, local, at: 0))
+
+        registry.markHostDisconnected("box")
+
+        XCTAssertNil(registry[running], "経路が切れた実行中は消す")
+        XCTAssertEqual(registry[done]?.status, .completed, "終わった記録は残す")
+        XCTAssertEqual(registry[done]?.liveness, .gone)
+        XCTAssertEqual(registry[local]?.status, .running, "ローカルには影響しない")
+        XCTAssertEqual(registry.summary.running, 1)
+        XCTAssertEqual(registry.summary.abandoned, 0, "切断は中断として見せない")
+    }
+
+    /// 別ホストのトンネルが落ちても巻き込まない。
+    func testHostDisconnectIsScopedToThatHost() {
+        var registry = SessionRegistry()
+        let k = key("r1")
+        registry.apply(AgentEvent(key: k, cwd: "/w", kind: .activity, pid: 1, host: "box", at: at(0)))
+
+        registry.markHostDisconnected("other")
+
+        XCTAssertEqual(registry[k]?.status, .running)
     }
 
     // MARK: - 同一性
